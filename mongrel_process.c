@@ -43,9 +43,10 @@ void print_args(char *const tmp[], int len){
 int write_pid_file(const char *const, const char *const);
 int write_pid_file(const char *const port, const char *const pid){
 	FILE *fp = NULL;
-	int size = strlen(PID_FILE_BASE) * 2;
+	int size = strlen(PID_FILE_BASE) * 4;
 	char file_name[size];
-	strncat(file_name, PID_FILE_BASE, size);
+	file_name[0] = '\0';
+	strncat(file_name, PID_FILE_BASE, strlen(PID_FILE_BASE));
 	strncat(file_name, ".", 1);
 	strncat(file_name, port, strlen(port));
 	strncat(file_name, ".pid", 4);
@@ -74,7 +75,13 @@ int write_pid_file(const char *const port, const char *const pid){
 
 
 int main(int argc, char **argv){
-	const char *const command = "/Users/dmknopp/jruby/bin/jruby";
+	if(argc < 1){
+		printf("Please provide the root directory of your rails app...");
+	}
+	printf("changing to dir %s \n", argv[1]);
+	chdir(argv[1]);
+	const char *const command = "/home/dmknopp/jruby/bin/jruby";
+	//const char *const command = "jruby";
 	int i, port;
 	printf("command = %s\n", command);
 	const int max_procs = 1;

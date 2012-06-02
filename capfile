@@ -1,0 +1,83 @@
+load 'deploy'
+
+#global variable of your application name
+set :application, "rapp" #rapp, my test name for my rails app
+
+#define you database servers, webservers, back up servers here
+role :server, "192.168.1.104"
+
+#expects to be run from the root director of a Rail application
+set :repository, '.'
+#no configuration management was used. tsk tsk, default is svn
+set :scm, :none
+#deploymnet strategy says just tar and gzip up the app, and copy it over
+#this option is often used with set :scm, :none
+set :deploy_via, :copy
+set :copy_compression, :gzip
+set :copy_exclude, ["doc", "log", "tmp"]
+set :deploy_to do
+	"/home/dmknopp/apps/#{application}"
+end
+
+namespace :production do
+	desc "cold machine. nothing has ever been deployed"
+	task :cold_machine, :roles => :server do
+		myversion
+		echo_hostname
+		deploy::setup
+	end
+
+	#The following will
+	# tar and gzip the project
+	# secure copy over the code, uses SSH keys if loaded, 
+	#	 otherwise asks for a password, uses current user
+	# gunzip and untars the tarball to a tagged directory
+	# stops the monitoring of the web application, this in turns stops the webserver
+	# 	using the scripts provided in the listing
+	# creates a symbolic link from the newly tagged directory as current
+	# starts the web application monitoring again, in turn seeing the web service is down
+	#	will start the web application up again.
+	desc "deploy to production, update new release of the software"
+	task :mydeploy, :roles => :server do
+		myversion
+		echo_hostname
+		deploy::update_code
+		unmonitor_web_server
+		#kill_web_server, merged with unmonitor step above
+		deploy::symlink
+		#start_web_server, merged with the monitor step above
+		monitor_web_server
+	end
+
+	desc "unmonitor the web server, so we dont get an error about it being down during redeploy"
+	task :unmonitor_web_server, :roles =>:server do
+		run "/home/dmknopp/bin/monit stop mongrel"
+	end
+
+	desc "monitor the web server"
+	task :monitor_web_server, :roles =>:server do
+		run "/home/dmknopp/bin/monit start mongrel"
+	end
+
+	desc "run the server, not used directly"
+	task :start_web_server, :roles =>:server do
+		run "/home/dmknopp/bin/start_mongrel_process.sh"
+	end
+
+	desc "kill the server, not used directly"
+	task :kill_web_server, :roles =>:server do
+		#the ,true says, silently ignore the empty output from pkill
+		#otherwise the empty output is interpreted as an error, and my deployment fails
+		run "/home/dmknopp/bin/stop_mongrel_process.sh; true"
+	end
+
+	desc "this deployment scripts version"
+	task :myversion, :roles=> :server do 
+	  puts "deployment script version .3"
+	end
+
+	desc "echo the server's hostname"
+	task :echo_hostname, :roles=> :server do 
+	  run "echo `hostname`"
+	end
+end
